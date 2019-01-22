@@ -127,5 +127,7 @@ namespace ReportGenerator.Repository
         List<Reports> ManyToOneReport(List<string> reports, List<string> tapes);
 
         //string CheckFileExtention(string)
+        bool CheckIsSegDCheck(string file);
+        bool CheckIsSegYCheck(string file);
     }
 }

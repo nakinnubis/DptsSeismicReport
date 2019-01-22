@@ -70,6 +70,16 @@ namespace ReportGenerator
 
         }
 
+        public bool CheckIsSegDCheck(string file)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool CheckIsSegYCheck(string file)
+        {
+            throw new NotImplementedException();
+        }
+
         public string CheckReportType(string query)
         {
             try

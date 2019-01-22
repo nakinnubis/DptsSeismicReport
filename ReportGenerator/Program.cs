@@ -36,7 +36,7 @@ namespace ReportGenerator
                     Console.ReadKey();
                     break;
                 default:
-                    Console.WriteLine("It Seems not to Understand your Request.. Things to do, 1. Try again, 2. Check you followed the Guide, 3.You can suggest it as a feature");
+                    Console.WriteLine("We Seems not to Understand your Request.. Things to do, 1. Try again, 2. Check you followed the Guide, 3.You can suggest it as a feature");
                     Console.ReadKey();
                     break;
             }            
@@ -83,6 +83,17 @@ namespace ReportGenerator
             }
             pdreport.CreateExcelReport(str);
             Console.Write("Done Successfully");
+        }
+
+        private static void DoCheckTranscriptionReport(HelperMethods pdreports)
+        {
+            Console.Write("Specify the location of your .SEGDCHK File: ");
+            var g = Console.ReadLine();
+            //  Console.WriteLine(g);
+            var file = Directory.GetFiles($"{g}",
+                "*.SEGDCHK",
+                SearchOption.AllDirectories);
+            //SEGDCHK - DPTS SEGD Format Checking Program
         }
     }
 }
