@@ -150,6 +150,11 @@ namespace ReportGenerator
 
         }
 
+        public List<SegDCheckExtract> EssembleShotPointExtract(string file)
+        {
+            throw new NotImplementedException();
+        }
+
         public List<string> GetFileSize(List<string> str)
         {
             try
@@ -505,6 +510,15 @@ namespace ReportGenerator
                 throw new ReportErrorHandler();
             }
         }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="array"></param>
+        /// <returns></returns>
+        public bool IsSequential(int[] array)
+        {
+            return array.OrderBy(a => a).Zip(array.Skip(1), (a, b) => (a + 1) == b).All(x => x);
+        }
 
         public List<Reports> ManyToOneReport(List<string> reports, List<string> tapes)
         {
@@ -557,5 +571,206 @@ namespace ReportGenerator
             }
         }
 
+        public List<SegDTapeSummary> TapeSummary(List<string> file)
+        {
+            List<string> data;
+            var st = file.SkipWhile(x => !x.Contains($"D P T S   S E G D C H K   T A P E   S U M M A R Y")).Skip(6) // and <rs:data> itself
+                      .TakeWhile(x => !x.Contains($" -------------------") || x.Contains($"Finished SEGDCHK")) // and take up to </rs:data>
+                      .ToList();
+            var fileSize = file.FirstOrDefault(c => c.Contains("Completed Physical reel, Transfer total")).Replace("Completed Physical reel, Transfer total ", "");
+            fileSize = fileSize.Split(',').Select(c => c).LastOrDefault();
+            data = st;
+            if (isSegDContainsMoreThanOne(data))
+            {
+                var finaloutput = new List<SegDTapeSummary>();
+                var tempdata = new List<SegDTapeSummary>();
+                var k = ExtractInfoFromIsSegDContainsMoreThanOne(data);
+                foreach (var item in k)
+                {
+                    var it = item.Split(' ').Where(s => !string.IsNullOrWhiteSpace(s));
+                    var iitem = string.Join(",", it);
+                    if (!string.IsNullOrWhiteSpace(iitem))
+                    {
+
+                        var outputParse = OutputParse(iitem);
+                        outputParse.FileSize = fileSize;
+                        outputParse.FileType = "SEGD";
+                        tempdata.Add(outputParse);
+                    }
+                }
+                return tempdata;
+            }
+            else
+            {
+                List<SegDTapeSummary> datas = new List<SegDTapeSummary>();
+                foreach (var item in data)
+                {
+                    var it = item.Split(' ').Where(s => !string.IsNullOrWhiteSpace(s));
+                    var iitem = string.Join(",", it);
+                    if (!string.IsNullOrWhiteSpace(iitem))
+                    {
+                        var outputParse = OutputParse(iitem);
+                        outputParse.FileSize = fileSize;
+                        outputParse.FileType = "SEGD";
+                        datas.Add(outputParse);
+                    }
+                    
+                    //  Console.WriteLine(iitem);
+                }
+                return datas;
+            }
+            //try
+            //{
+
+
+            //}
+            //          catch (ReportErrorHandler e)
+            //          {
+            //              Console.WriteLine(e.Message);
+            ////throw new NotImplementedException();
+            //             // throw;
+            //          }
+
+        }
+
+        public SegDTapeSummary OutputParse(string output)
+        {
+            var outP = output.Split(',').Select(c => c).ToList();
+            return new SegDTapeSummary
+            {
+                Reel = outP[0],
+                FirstFFID = outP[2],
+                LastFFID = outP[3],
+                FFIDCount = outP[4],
+                NoOfTrace = outP[5]
+            };
+            //if (string.IsNullOrWhiteSpace(output)) 
+
+        }
+
+        public void CreateExcelReport(List<SegDTapeSummary> reports)
+        {
+            try
+            {
+               var reelid = GetReelIdsFromIsMoreThanOne(reports);
+                var res = IsMoreThanOneFinalized(reports, reelid);
+              // var  finaloutput.AddRange(res);                
+                var data = res.ToArray();
+                Console.WriteLine("if Report name for the file is not specified the default settings will be used!");
+                Console.Write("Enter The Directory where you want to save your report to with file name:  ");
+                var outdir = Console.ReadLine();
+                //  if(outdir.EndsWith(".csv"))
+                using (var mem = new MemoryStream())
+                using (var writer = new StreamWriter(mem))
+                using (var csvWriter = new CsvWriter(writer))
+                {
+                    csvWriter.Configuration.Delimiter = ",";
+                    csvWriter.WriteField("Serial Number");
+                    csvWriter.WriteField("Reel ");
+                    csvWriter.WriteField("First FFID");
+                    csvWriter.WriteField("Last FFID");
+                    csvWriter.WriteField("FFID COUNT");
+                    csvWriter.WriteField("Trace COUNT");
+                    csvWriter.WriteField("FILE SIZE");
+                    csvWriter.WriteField("File Format");
+                    csvWriter.NextRecord();
+                    int i = 0;
+                    foreach (var project in data)
+
+                    {
+                        i++;
+                        csvWriter.WriteField(i);
+                        csvWriter.WriteField(project.Reel);
+                        csvWriter.WriteField(project.FirstFFID);
+                        csvWriter.WriteField(project.LastFFID);
+                        csvWriter.WriteField(project.FFIDCount);
+                        csvWriter.WriteField(project.NoOfTrace);
+                        csvWriter.WriteField(project.FileSize);
+                        csvWriter.WriteField(project.FileType);                        
+                        csvWriter.NextRecord();
+                    }
+
+                    writer.Flush();
+                    var result = Encoding.UTF8.GetString(mem.ToArray());
+                    File.WriteAllText($"{outdir}", result);
+                }
+            }
+            catch (ReportErrorHandler)
+            {
+                throw new ReportErrorHandler();
+            }
+        }
+
+        public bool isSegDContainsMoreThanOne(List<string> st)
+        {
+            if (st !=null)
+            {
+                if(st.Count(c=>c.Contains("-1")) ==1 || st.Count(c => c.Contains("-1")) > 1)
+                {
+                    return true;
+                }
+                
+            }
+            return false;
+        }
+        public List<string> ExtractInfoFromIsSegDContainsMoreThanOne(List<string> args )
+        {
+            var filterhelp = new List<SegDTapeSummary>();
+
+            var str = args.Skip(1).TakeWhile(c=>!string.IsNullOrWhiteSpace(c)).ToList();
+            return str;
+
+        }
+        public List<string> GetReelIdsFromIsMoreThanOne(List<SegDTapeSummary> dTapeSummaries)
+        {
+            var reelid = dTapeSummaries.Select(c => c.Reel).Distinct().ToList();
+            return reelid;
+        }
+        public List<SegDTapeSummary> IsMoreThanOneFinalized(List<SegDTapeSummary> dTapeSummaries, List<string> reelid)
+        {
+            var dTapeSummary = new List<SegDTapeSummary>();
+            foreach (var reel in reelid)
+            {
+                var dts = dTapeSummaries.Select(c => new SegDTapeSummary
+                {
+                    Reel = reel,
+                    FFIDCount = $"{FFIDSum(dTapeSummaries, reel)}",
+                    NoOfTrace = $"{TraceSum(dTapeSummaries, reel)}",
+                    FirstFFID = $"{FidSelector(dTapeSummaries, reel)}",
+                    LastFFID = $"{LastFidSelector(dTapeSummaries, reel)}",
+                    FileSize =$"{FileSizeSelector(dTapeSummaries, reel)}" ,
+                    FileType=c.FileType
+                    
+                }).Distinct().FirstOrDefault();
+                if (!dTapeSummary.Contains(dts))
+                {
+                    dTapeSummary.Add(dts);
+                }                            
+            }
+            return dTapeSummary;
+        }
+
+        private static string FidSelector(List<SegDTapeSummary> dTapeSummaries, string reel)
+        {
+            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.FirstFFID).FirstOrDefault().ToString();
+        }
+        private static string FileSizeSelector(List<SegDTapeSummary> dTapeSummaries, string reel)
+        {
+            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.FileSize).FirstOrDefault().ToString();
+        }
+        private static string LastFidSelector(List<SegDTapeSummary> dTapeSummaries, string reel)
+        {
+            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.LastFFID).LastOrDefault().ToString();
+        }
+
+        private static int TraceSum(List<SegDTapeSummary> dTapeSummaries, string reel)
+        {
+            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => int.Parse(i.NoOfTrace)).Sum();
+        }
+
+        private static int FFIDSum(List<SegDTapeSummary> dTapeSummaries, string reel)
+        {
+            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => int.Parse(i.FFIDCount)).Sum();
+        }
     }
 }

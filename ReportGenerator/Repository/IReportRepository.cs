@@ -118,6 +118,7 @@ namespace ReportGenerator.Repository
         /// </summary>
         /// <param name="reports"></param>
         void CreateExcelReport(List<Reports> reports);
+        void CreateExcelReport(List<SegDTapeSummary> reports);
         /// <summary>
         /// 
         /// </summary>
@@ -129,5 +130,9 @@ namespace ReportGenerator.Repository
         //string CheckFileExtention(string)
         bool CheckIsSegDCheck(string file);
         bool CheckIsSegYCheck(string file);
+        List<SegDCheckExtract> EssembleShotPointExtract(string file);
+        List<SegDTapeSummary> TapeSummary(List<string> file);
+        bool IsSequential(int[] array);
+        bool isSegDContainsMoreThanOne(List<string> st);
     }
 }

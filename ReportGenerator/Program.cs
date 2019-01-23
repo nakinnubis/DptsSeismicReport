@@ -17,19 +17,23 @@ namespace ReportGenerator
             Console.WriteLine(intro);
             Console.WriteLine(otherstyle);
 
-            var softwaretype = "Trancription Report and QC Generator Software from Diplomat Tape Copy";
+            var softwaretype = $"Trancription Report and QC Generator Software from Diplomat Tape Copy {Environment.NewLine}";
             Console.WriteLine(softwaretype);
+            Console.WriteLine($"You can run 3 type of command {Environment.NewLine}1.To run MTC4 copy report use : COPY COMMAND{Environment.NewLine}2.To run SEGD check report use: SEGD CHECK COMMAND{Environment.NewLine}3.To run SEGY check report use: SEGY CHECK COMMAND{Environment.NewLine} ");
             var getinputQuery = Console.ReadLine();
-            var query = getinputQuery;
+            var query = getinputQuery.Trim();
             switch (query)
             {
                 case "SEGY CHECK COMMAND":
                     Console.WriteLine("You used a Segy Check Command");
+                   // DoSegDRep(pdreport);
                     Console.ReadKey();
                     break;
                 case "SEGD CHECK COMMAND":
                     Console.WriteLine("You used a Segd Check Command");
-                    Console.ReadKey();
+                    DoSegDRep(pdreport);
+                   // Console.ReadKey();
+                    //Console.ReadKey();
                     break;
                 case "COPY COMMAND":                    
                      DoTranscriptionReport(pdreport);
@@ -94,6 +98,30 @@ namespace ReportGenerator
                 "*.SEGDCHK",
                 SearchOption.AllDirectories);
             //SEGDCHK - DPTS SEGD Format Checking Program
+        }
+        private static void DoSegDRep(HelperMethods helperMethods)
+        {
+            List<string> content;
+            List<SegDTapeSummary> tapeSummaries = new List<SegDTapeSummary>();
+            Console.Write("Specify the location of your .SEGDCHK File: ");
+            var g = Console.ReadLine();
+            //  Console.WriteLine(g);
+            var file = Directory.GetFiles($"{g}",
+                "*.SEGDCHK",
+                SearchOption.AllDirectories);
+            foreach (var f in file)
+            {
+                content = File.ReadAllLines(f).ToList();
+                var sttt= helperMethods.TapeSummary(content);
+                tapeSummaries.AddRange(sttt);
+            }
+            helperMethods.CreateExcelReport(tapeSummaries);
+            //foreach (var item in tapeSummaries)
+            //{
+            //    Console.WriteLine($"{item.Reel} with size of {item.FileSize}");
+            //}
+            Console.WriteLine("Successfully done!! Hurray");
+            Console.ReadKey();
         }
     }
 }
