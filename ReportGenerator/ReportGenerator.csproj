@@ -102,6 +102,7 @@
     <Compile Include="Repository\IReportRepository.cs" />
     <Compile Include="SegDCheckExtract.cs" />
     <Compile Include="SegDTapeSummary.cs" />
+    <Compile Include="SegYTapeSummary.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

@@ -497,9 +497,9 @@
         "Product"
         {
         "Name" = "8:Microsoft Visual Studio"
-        "ProductName" = "8:TranscriptionReporter"
+        "ProductName" = "8:Transcription Reporter"
         "ProductCode" = "8:{D494ABDC-57EC-49FB-B891-45A9E5AE62C0}"
-        "PackageCode" = "8:{1F491D50-A580-4DAF-9EF2-74DE03AD4D2A}"
+        "PackageCode" = "8:{E93674B4-7936-4F6B-B092-4B830CD70382}"
         "UpgradeCode" = "8:{1BB8D50D-CCD2-4313-8DB5-E3F0840A4E88}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"

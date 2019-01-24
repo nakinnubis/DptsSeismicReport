@@ -119,6 +119,7 @@ namespace ReportGenerator.Repository
         /// <param name="reports"></param>
         void CreateExcelReport(List<Reports> reports);
         void CreateExcelReport(List<SegDTapeSummary> reports);
+        void CreateExcelReport(List<SegYTapeSummary> reports);
         /// <summary>
         /// 
         /// </summary>
@@ -134,5 +135,6 @@ namespace ReportGenerator.Repository
         List<SegDTapeSummary> TapeSummary(List<string> file);
         bool IsSequential(int[] array);
         bool isSegDContainsMoreThanOne(List<string> st);
+        List<SegYTapeSummary> SegyTapeSummary(List<string> file);
     }
 }

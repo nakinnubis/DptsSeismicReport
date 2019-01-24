@@ -574,8 +574,8 @@ namespace ReportGenerator
         public List<SegDTapeSummary> TapeSummary(List<string> file)
         {
             List<string> data;
-            var st = file.SkipWhile(x => !x.Contains($"D P T S   S E G D C H K   T A P E   S U M M A R Y")).Skip(6) // and <rs:data> itself
-                      .TakeWhile(x => !x.Contains($" -------------------") || x.Contains($"Finished SEGDCHK")) // and take up to </rs:data>
+            var st = file.SkipWhile(x => !x.Contains($"D P T S   S E G D C H K   T A P E   S U M M A R Y")).Skip(5) // and <rs:data> itself
+                      .TakeWhile(x =>!x.Contains($" -------------------") || x.Contains($"SEGDCHK - DPTS SEGD Format") || x.Contains($"Finished SEGDCHK")) // and take up to </rs:data>
                       .ToList();
             var fileSize = file.FirstOrDefault(c => c.Contains("Completed Physical reel, Transfer total")).Replace("Completed Physical reel, Transfer total ", "");
             fileSize = fileSize.Split(',').Select(c => c).LastOrDefault();
@@ -614,7 +614,7 @@ namespace ReportGenerator
                         outputParse.FileType = "SEGD";
                         datas.Add(outputParse);
                     }
-                    
+
                     //  Console.WriteLine(iitem);
                 }
                 return datas;
@@ -647,14 +647,28 @@ namespace ReportGenerator
             //if (string.IsNullOrWhiteSpace(output)) 
 
         }
+        public SegYTapeSummary OutputParseSegY(string output)
+        {
+            var outP = output.Split(',').Select(c => c).ToList();
+            return new SegYTapeSummary
+            {
+                Reel = outP[0],
+                FirstFFID = outP[2],
+                LastFFID = outP[3],
+                FFIDCount = outP[4],
+                TraceCount = outP[6]
+            };
+            //if (string.IsNullOrWhiteSpace(output)) 
+
+        }
 
         public void CreateExcelReport(List<SegDTapeSummary> reports)
         {
             try
             {
-               var reelid = GetReelIdsFromIsMoreThanOne(reports);
+                var reelid = GetReelIdsFromIsMoreThanOne(reports);
                 var res = IsMoreThanOneFinalized(reports, reelid);
-              // var  finaloutput.AddRange(res);                
+                // var  finaloutput.AddRange(res);                
                 var data = res.ToArray();
                 Console.WriteLine("if Report name for the file is not specified the default settings will be used!");
                 Console.Write("Enter The Directory where you want to save your report to with file name:  ");
@@ -686,7 +700,60 @@ namespace ReportGenerator
                         csvWriter.WriteField(project.FFIDCount);
                         csvWriter.WriteField(project.NoOfTrace);
                         csvWriter.WriteField(project.FileSize);
-                        csvWriter.WriteField(project.FileType);                        
+                        csvWriter.WriteField(project.FileType);
+                        csvWriter.NextRecord();
+                    }
+
+                    writer.Flush();
+                    var result = Encoding.UTF8.GetString(mem.ToArray());
+                    File.WriteAllText($"{outdir}", result);
+                }
+            }
+            catch (ReportErrorHandler)
+            {
+                throw new ReportErrorHandler();
+            }
+        }
+
+        public void CreateExcelReport(List<SegYTapeSummary> reports)
+        {
+            try
+            {
+                var reelid = GetReelIdsFromIsMoreThanOne(reports);
+                var res = IsMoreThanOneFinalized(reports, reelid);
+                // var  finaloutput.AddRange(res);                
+                var data = res.ToArray();
+                Console.WriteLine("if Report name for the file is not specified the default settings will be used!");
+                Console.Write("Enter The Directory where you want to save your report to with file name:  ");
+                var outdir = Console.ReadLine();
+                //  if(outdir.EndsWith(".csv"))
+                using (var mem = new MemoryStream())
+                using (var writer = new StreamWriter(mem))
+                using (var csvWriter = new CsvWriter(writer))
+                {
+                    csvWriter.Configuration.Delimiter = ",";
+                    csvWriter.WriteField("Serial Number");
+                    csvWriter.WriteField("Reel ");
+                    csvWriter.WriteField("First FFID");
+                    csvWriter.WriteField("Last FFID");
+                    csvWriter.WriteField("FFID COUNT");
+                    csvWriter.WriteField("Trace COUNT");
+                    csvWriter.WriteField("FILE SIZE");
+                    csvWriter.WriteField("File Format");
+                    csvWriter.NextRecord();
+                    int i = 0;
+                    foreach (var project in data)
+
+                    {
+                        i++;
+                        csvWriter.WriteField(i);
+                        csvWriter.WriteField(project.Reel);
+                        csvWriter.WriteField(project.FirstFFID);
+                        csvWriter.WriteField(project.LastFFID);
+                        csvWriter.WriteField(project.FFIDCount);
+                        csvWriter.WriteField(project.TraceCount);
+                        csvWriter.WriteField(project.FileSize);
+                        csvWriter.WriteField(project.FileType);
                         csvWriter.NextRecord();
                     }
 
@@ -703,25 +770,30 @@ namespace ReportGenerator
 
         public bool isSegDContainsMoreThanOne(List<string> st)
         {
-            if (st !=null)
+            if (st != null)
             {
-                if(st.Count(c=>c.Contains("-1")) ==1 || st.Count(c => c.Contains("-1")) > 1)
+                if (st.Count(c => c.Contains("-1")) == 1 || st.Count(c => c.Contains("-1")) > 1 || st.Count > 1)
                 {
                     return true;
                 }
-                
+
             }
             return false;
         }
-        public List<string> ExtractInfoFromIsSegDContainsMoreThanOne(List<string> args )
+        public List<string> ExtractInfoFromIsSegDContainsMoreThanOne(List<string> args)
         {
             var filterhelp = new List<SegDTapeSummary>();
 
-            var str = args.Skip(1).TakeWhile(c=>!string.IsNullOrWhiteSpace(c)).ToList();
+            var str = args.Skip(1).TakeWhile(c => !string.IsNullOrWhiteSpace(c)).ToList();
             return str;
 
         }
         public List<string> GetReelIdsFromIsMoreThanOne(List<SegDTapeSummary> dTapeSummaries)
+        {
+            var reelid = dTapeSummaries.Select(c => c.Reel).Distinct().ToList();
+            return reelid;
+        }
+        public List<string> GetReelIdsFromIsMoreThanOne(List<SegYTapeSummary> dTapeSummaries)
         {
             var reelid = dTapeSummaries.Select(c => c.Reel).Distinct().ToList();
             return reelid;
@@ -738,23 +810,53 @@ namespace ReportGenerator
                     NoOfTrace = $"{TraceSum(dTapeSummaries, reel)}",
                     FirstFFID = $"{FidSelector(dTapeSummaries, reel)}",
                     LastFFID = $"{LastFidSelector(dTapeSummaries, reel)}",
-                    FileSize =$"{FileSizeSelector(dTapeSummaries, reel)}" ,
-                    FileType=c.FileType
-                    
+                    FileSize = $"{FileSizeSelector(dTapeSummaries, reel)}",
+                    FileType = c.FileType
+
                 }).Distinct().FirstOrDefault();
                 if (!dTapeSummary.Contains(dts))
                 {
                     dTapeSummary.Add(dts);
-                }                            
+                }
             }
             return dTapeSummary;
         }
+        public List<SegYTapeSummary> IsMoreThanOneFinalized(List<SegYTapeSummary> dTapeSummaries, List<string> reelid)
+        {
+            var dTapeSummary = new List<SegYTapeSummary>();
+            foreach (var reel in reelid)
+            {
+                var dts = dTapeSummaries.Select(c => new SegYTapeSummary
+                {
+                    Reel = reel,
+                    FFIDCount = $"{FFIDSum(dTapeSummaries, reel)}",
+                    TraceCount = $"{TraceSum(dTapeSummaries, reel)}",
+                    FirstFFID = $"{FidSelector(dTapeSummaries, reel)}",
+                    LastFFID = $"{LastFidSelector(dTapeSummaries, reel)}",
+                    FileSize = $"{FileSizeSelector(dTapeSummaries, reel)}",
+                    FileType = c.FileType
 
+                }).Distinct().FirstOrDefault();
+                if (!dTapeSummary.Contains(dts))
+                {
+                    dTapeSummary.Add(dts);
+                }
+            }
+            return dTapeSummary;
+        }
         private static string FidSelector(List<SegDTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.FirstFFID).FirstOrDefault().ToString();
+            return dTapeSummaries.Where(rel => rel.Reel == reel && rel.FirstFFID !="-1").Select(sc => sc.FirstFFID).FirstOrDefault().ToString();
+        }
+        private static string FidSelector(List<SegYTapeSummary> dTapeSummaries, string reel)
+        {
+            return dTapeSummaries.Where(rel => rel.Reel == reel && rel.FirstFFID != "-1").Select(sc => sc.FirstFFID).FirstOrDefault().ToString();
         }
         private static string FileSizeSelector(List<SegDTapeSummary> dTapeSummaries, string reel)
+        {
+            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.FileSize).FirstOrDefault().ToString();
+        }
+        private static string FileSizeSelector(List<SegYTapeSummary> dTapeSummaries, string reel)
         {
             return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.FileSize).FirstOrDefault().ToString();
         }
@@ -762,15 +864,112 @@ namespace ReportGenerator
         {
             return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.LastFFID).LastOrDefault().ToString();
         }
-
-        private static int TraceSum(List<SegDTapeSummary> dTapeSummaries, string reel)
+        private static string LastFidSelector(List<SegYTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => int.Parse(i.NoOfTrace)).Sum();
+            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.LastFFID).LastOrDefault().ToString();
+        }
+        private static double TraceSum(List<SegDTapeSummary> dTapeSummaries, string reel)
+        {
+            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => double.Parse(i.NoOfTrace)).Sum();
+        }
+        private static double TraceSum(List<SegYTapeSummary> dTapeSummaries, string reel)
+        {
+            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => double.Parse(i.TraceCount)).Sum();
         }
 
-        private static int FFIDSum(List<SegDTapeSummary> dTapeSummaries, string reel)
+        private static double? FFIDSum(List<SegDTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => int.Parse(i.FFIDCount)).Sum();
+            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => DoubleParser(i)).Sum();
+        }
+        private static double? FFIDSum(List<SegYTapeSummary> dTapeSummaries, string reel)
+        {           
+            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => DoubleParser(i)).Sum();
+        }
+
+        private static double? DoubleParser(dynamic i)
+        {
+            double number;
+            double defaultval = 0.0;
+            return double.TryParse(i.FFIDCount, out number) ? number : defaultval;
+            //if ()
+            //{
+            //    return ;
+            //}
+            //else
+            //{
+            //   return ;
+            //}
+        }
+
+        public List<SegYTapeSummary> SegyTapeSummary(List<string> file)
+        {
+            try
+            {
+                List<string> data;
+                var st = file.SkipWhile(x => !x.Contains($"D P T S   S E G Y C H K   T A P E   S U M M A R Y")).Skip(5) // and <rs:data> itself
+                          .TakeWhile(x => !x.Contains($"  ----------------------") ||x.Contains($"SEGYCHK - DPTS SEGY Format Checking Program") || x.Contains($"Finished S E G Y C H K")) // and take up to </rs:data>
+                          .ToList();              
+                var fileSize = file.FirstOrDefault(c => c.Contains("Completed Physical reel, Transfer total")).Replace("Completed Physical reel, Transfer total ", "");
+                fileSize = fileSize.Split(',').Select(c => c).LastOrDefault();
+                data = st;
+                if (isSegYContainsMoreThanOne(data))
+                {
+                    var finaloutput = new List<SegYTapeSummary>();
+                    var tempdata = new List<SegYTapeSummary>();
+                    var k = ExtractInfoFromIsSegDContainsMoreThanOne(data);
+                    foreach (var item in k)
+                    {
+                        var it = item.Split(' ').Where(s => !string.IsNullOrWhiteSpace(s));
+                        var iitem = string.Join(",", it);
+                        if (!string.IsNullOrWhiteSpace(iitem))
+                        {
+
+                            var outputParse = OutputParseSegY(iitem);
+                            outputParse.FileSize = fileSize;
+                            outputParse.FileType = "SEGY";
+                            tempdata.Add(outputParse);
+                        }
+                    }
+                    return tempdata;
+                }
+                else
+                {
+                    List<SegYTapeSummary> datas = new List<SegYTapeSummary>();
+                    foreach (var item in data)
+                    {
+                        var it = item.Split(' ').Where(s => !string.IsNullOrWhiteSpace(s));
+                        var iitem = string.Join(",", it);
+                        if (!string.IsNullOrWhiteSpace(iitem))
+                        {
+                            var outputParse = OutputParseSegY(iitem);
+                            outputParse.FileSize = fileSize;
+                            outputParse.FileType = "SEGY";
+                            datas.Add(outputParse);
+                        }
+
+                        //  Console.WriteLine(iitem);
+                    }
+                    return datas;
+                }
+            }
+            catch (ReportErrorHandler)
+            {
+                throw new ReportErrorHandler();
+            }
+            
+        }
+
+        private bool isSegYContainsMoreThanOne(List<string> data)
+        {
+            if (data != null)
+            {
+                if (data.Count > 1)
+                {
+                    var c = data.Count;
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
