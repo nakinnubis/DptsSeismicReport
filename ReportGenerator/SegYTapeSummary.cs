@@ -13,7 +13,7 @@ namespace ReportGenerator
         public string FirstFFID { get; set; }
         public string LastFFID { get; set; }
         public string FFIDCount { get; set; }
-        public string FFIDIncrement { get; set; }
+        public string FfidIncrement { get; set; }
         public string TraceCount { get; set; }
         public string FileType { get; set; }
         public string FileSize { get; set; }

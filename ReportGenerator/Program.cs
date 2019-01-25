@@ -91,6 +91,7 @@ namespace ReportGenerator
                     }
                     pdreport.CreateExcelReport(str);
                     Console.Write("Done Successfully");
+                    Main();
                 }
                 else
                 {
@@ -127,7 +128,8 @@ namespace ReportGenerator
                     }
                     helperMethods.CreateExcelReport(tapeSummaries);
                     Console.WriteLine("SEGD CHECK Report Successfully done!! Hurray");
-                    Console.ReadKey();
+                    Main();
+                    //Console.ReadKey();
                 }
                 else
                 {

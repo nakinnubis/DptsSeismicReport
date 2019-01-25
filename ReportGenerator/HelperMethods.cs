@@ -202,13 +202,16 @@ namespace ReportGenerator
                         _reports.FileNumEnd = fileend;
                         _reports.TapeId = tape;
                         _reports.FileFormat = "SEGY";
-                        filesize = st.Where(c => c.Contains("Transfer total")).FirstOrDefault();
-                        startpos = filesize.IndexOf("Mb,");
-                        endpos = filesize.LastIndexOf("G") + 1;
-                        filesize = filesize.Substring(startpos + 3).Trim();
-                        nosfile = int.Parse(lastessemble) - int.Parse(firstessemble);
-                        _reports.NumberOfFiles = nosfile;
-                        _reports.DataSize = filesize;
+                        filesize = st.FirstOrDefault(c => c.Contains("Transfer total"));
+                        if (filesize != null)
+                        {
+                            startpos = filesize.IndexOf("Mb,", StringComparison.Ordinal);
+                            filesize = filesize.Substring(startpos + 3).Trim();
+                            nosfile = int.Parse(lastessemble) - int.Parse(firstessemble);
+                            _reports.NumberOfFiles = nosfile;
+                            _reports.DataSize = filesize;
+                        }
+
                         reports.Add(_reports);
                     }
                 }
@@ -219,28 +222,30 @@ namespace ReportGenerator
                         .TakeWhile(x => !x.Contains($"BATCHCOPY - Unloading input tape {tape}")) // and take up to </rs:data>
                         .ToList();
                     firstessemble =
-                        st.Where(c =>
-                                c.Contains("Length = ") || c.Contains("Length =   2432") && !c.Contains("Length =   7680 "))
-                            .FirstOrDefault().Replace("Length = ", "").TrimStart();
+                        st
+                            .FirstOrDefault(c => c.Contains("Length = ") || c.Contains("Length =   2432") && !c.Contains("Length =   7680 ")).Replace("Length = ", "").TrimStart();
                     firstessemble = firstessemble.Substring(0, firstessemble.LastIndexOf("  ID = "));
-                    lastessemble = st.Where(c => c.Contains("Length = ")).LastOrDefault().Replace("Length = ", "").TrimStart();
+                    lastessemble = st.LastOrDefault(c => c.Contains("Length = ")).Replace("Length = ", "").TrimStart();
                     lastessemble = lastessemble.Substring(0, lastessemble.LastIndexOf("  ID = "));
-                    filesize = st.Where(c => c.Contains("Transfer total")).FirstOrDefault();
-                    startpos = filesize.IndexOf("Mb,");
-                    endpos = filesize.LastIndexOf("G") + 1;
-                    filesize = filesize.Substring(startpos + 3).Trim();
-                    nosfile = int.Parse(lastessemble) - int.Parse(firstessemble);
-                    filestart = int.Parse(firstessemble);
-                    fileend = int.Parse(lastessemble);
-                    _reports = new Reports
+                    filesize = st.FirstOrDefault(c => c.Contains("Transfer total"));
+                    if (filesize != null)
                     {
-                        TapeId = tape,
-                        NumberOfFiles = nosfile,
-                        FileNumStart = filestart,
-                        FileNumEnd = fileend,
-                        DataSize = filesize,
-                        FileFormat = "SEGD"
-                    };
+                        startpos = filesize.IndexOf("Mb,", StringComparison.Ordinal);
+                        filesize = filesize.Substring(startpos + 3).Trim();
+                        nosfile = int.Parse(lastessemble) - int.Parse(firstessemble);
+                        filestart = int.Parse(firstessemble);
+                        fileend = int.Parse(lastessemble);
+                        _reports = new Reports
+                        {
+                            TapeId = tape,
+                            NumberOfFiles = nosfile,
+                            FileNumStart = filestart,
+                            FileNumEnd = fileend,
+                            DataSize = filesize,
+                            FileFormat = "SEGD"
+                        };
+                    }
+
                     reports.Add(_reports);
                 }
 
@@ -331,7 +336,6 @@ namespace ReportGenerator
                             if (filesize != null)
                             {
                                 startpos = filesize.IndexOf("Mb,", StringComparison.Ordinal);
-                                endpos = filesize.LastIndexOf("G", StringComparison.Ordinal) + 1;
                                 filesize = filesize.Substring(startpos + 3).Trim();
                             }
 
@@ -367,7 +371,7 @@ namespace ReportGenerator
             try
             {
                 arg = arg.Replace("BATCHCOPY - Copying tape ", "");
-                arg = arg.Substring(0, arg.IndexOf("{"));
+                arg = arg.Substring(0, arg.IndexOf("{", StringComparison.Ordinal));
                 return arg;
             }
             catch (ReportErrorHandler)
@@ -381,7 +385,7 @@ namespace ReportGenerator
             try
             {
                 arg = arg.Replace("BATCHCOPY - Copying input tape ", "");
-                arg = arg.Substring(0, arg.IndexOf("{"));
+                arg = arg.Substring(0, arg.IndexOf("{", StringComparison.Ordinal));
                 return arg;
             }
             catch (ReportErrorHandler)
@@ -579,6 +583,7 @@ namespace ReportGenerator
                       .ToList();
             var fileSize = file.FirstOrDefault(c => c.Contains("Completed Physical reel, Transfer total")).Replace("Completed Physical reel, Transfer total ", "");
             fileSize = fileSize.Split(',').Select(c => c).LastOrDefault();
+            st = RemoveUnnecessaryString(st, "SEGYCHK - DPTS SEGD Format Checking Program");
             data = st;
             if (isSegDContainsMoreThanOne(data))
             {
@@ -649,8 +654,14 @@ namespace ReportGenerator
         }
         public SegYTapeSummary OutputParseSegY(string output)
         {
-            var outP = output.Split(',').Select(c => c).ToList();
-            return new SegYTapeSummary
+            var outP = output.Split(',').ToList();
+           
+            if (outP.Count < 7)
+            {
+                var outfinal = new SegYTapeSummary();
+                return outfinal;
+            }
+            var outf = new SegYTapeSummary
             {
                 Reel = outP[0],
                 FirstFFID = outP[2],
@@ -658,6 +669,8 @@ namespace ReportGenerator
                 FFIDCount = outP[4],
                 TraceCount = outP[6]
             };
+            return outf;
+
             //if (string.IsNullOrWhiteSpace(output)) 
 
         }
@@ -719,6 +732,7 @@ namespace ReportGenerator
         {
             try
             {
+                reports = reports.Where(c => c.TraceCount != "0").ToList();
                 var reelid = GetReelIdsFromIsMoreThanOne(reports);
                 var res = IsMoreThanOneFinalized(reports, reelid);
                 // var  finaloutput.AddRange(res);                
@@ -846,27 +860,27 @@ namespace ReportGenerator
         }
         private static string FidSelector(List<SegDTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(rel => rel.Reel == reel && rel.FirstFFID !="-1").Select(sc => sc.FirstFFID).FirstOrDefault().ToString();
+            return dTapeSummaries.Where(rel => rel.Reel == reel && rel.FirstFFID !="-1").Select(sc => sc.FirstFFID).FirstOrDefault();
         }
         private static string FidSelector(List<SegYTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(rel => rel.Reel == reel && rel.FirstFFID != "-1").Select(sc => sc.FirstFFID).FirstOrDefault().ToString();
+            return dTapeSummaries.Where(rel => rel.Reel == reel && rel.FirstFFID != "-1").Select(sc => sc.FirstFFID).FirstOrDefault();
         }
         private static string FileSizeSelector(List<SegDTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.FileSize).FirstOrDefault().ToString();
+            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.FileSize).FirstOrDefault();
         }
         private static string FileSizeSelector(List<SegYTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.FileSize).FirstOrDefault().ToString();
+            return dTapeSummaries.Where(rel => rel.Reel == reel && reel!=null).Select(sc => sc.FileSize).FirstOrDefault();
         }
         private static string LastFidSelector(List<SegDTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.LastFFID).LastOrDefault().ToString();
+            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.LastFFID).LastOrDefault();
         }
         private static string LastFidSelector(List<SegYTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(rel => rel.Reel == reel).Select(sc => sc.LastFFID).LastOrDefault().ToString();
+            return dTapeSummaries.Where(rel => rel.Reel == reel && reel !=null).Select(sc => sc.LastFFID).LastOrDefault();
         }
         private static double TraceSum(List<SegDTapeSummary> dTapeSummaries, string reel)
         {
@@ -874,31 +888,22 @@ namespace ReportGenerator
         }
         private static double TraceSum(List<SegYTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => double.Parse(i.TraceCount)).Sum();
+            return dTapeSummaries.Where(k => k.Reel == reel && reel !=null).Select(i => double.Parse(i.TraceCount)).Sum();
         }
 
-        private static double? FFIDSum(List<SegDTapeSummary> dTapeSummaries, string reel)
+        private static double FFIDSum(List<SegDTapeSummary> dTapeSummaries, string reel)
         {
-            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => DoubleParser(i)).Sum();
+            return dTapeSummaries.Where(k => k.Reel == reel).Select(DoubleParser).Sum();
         }
-        private static double? FFIDSum(List<SegYTapeSummary> dTapeSummaries, string reel)
+        private static double FFIDSum(List<SegYTapeSummary> dTapeSummaries, string reel)
         {           
-            return dTapeSummaries.Where(k => k.Reel == reel).Select(i => DoubleParser(i)).Sum();
+            return dTapeSummaries.Where(k => k.Reel == reel && reel != null).Select(DoubleParser).Sum();
         }
 
-        private static double? DoubleParser(dynamic i)
+        private static double DoubleParser(dynamic i)
         {
-            double number;
             double defaultval = 0.0;
-            return double.TryParse(i.FFIDCount, out number) ? number : defaultval;
-            //if ()
-            //{
-            //    return ;
-            //}
-            //else
-            //{
-            //   return ;
-            //}
+            return double.TryParse(i.FFIDCount, out double number) ? number : defaultval;
         }
 
         public List<SegYTapeSummary> SegyTapeSummary(List<string> file)
@@ -908,13 +913,13 @@ namespace ReportGenerator
                 List<string> data;
                 var st = file.SkipWhile(x => !x.Contains($"D P T S   S E G Y C H K   T A P E   S U M M A R Y")).Skip(5) // and <rs:data> itself
                           .TakeWhile(x => !x.Contains($"  ----------------------") ||x.Contains($"SEGYCHK - DPTS SEGY Format Checking Program") || x.Contains($"Finished S E G Y C H K")) // and take up to </rs:data>
-                          .ToList();              
+                          .ToList();
+                st = RemoveUnnecessaryString(st, "SEGYCHK - DPTS SEGY Format Checking Program");
                 var fileSize = file.FirstOrDefault(c => c.Contains("Completed Physical reel, Transfer total")).Replace("Completed Physical reel, Transfer total ", "");
                 fileSize = fileSize.Split(',').Select(c => c).LastOrDefault();
                 data = st;
                 if (isSegYContainsMoreThanOne(data))
                 {
-                    var finaloutput = new List<SegYTapeSummary>();
                     var tempdata = new List<SegYTapeSummary>();
                     var k = ExtractInfoFromIsSegDContainsMoreThanOne(data);
                     foreach (var item in k)
@@ -923,34 +928,37 @@ namespace ReportGenerator
                         var iitem = string.Join(",", it);
                         if (!string.IsNullOrWhiteSpace(iitem))
                         {
-
-                            var outputParse = OutputParseSegY(iitem);
-                            outputParse.FileSize = fileSize;
-                            outputParse.FileType = "SEGY";
-                            tempdata.Add(outputParse);
+                            if (!string.IsNullOrEmpty(OutputParseSegY(iitem).TraceCount)  || !string.IsNullOrEmpty(OutputParseSegY(iitem).FFIDCount) || !string.IsNullOrEmpty(OutputParseSegY(iitem).Reel))
+                            {
+                                var outputParse = OutputParseSegY(iitem);
+                                outputParse.FileSize = fileSize;
+                                outputParse.FileType = "SEGY";
+                                tempdata.Add(outputParse);
+                            }
                         }
                     }
                     return tempdata;
                 }
-                else
+
+                List<SegYTapeSummary> datas = new List<SegYTapeSummary>();
+                foreach (var item in data)
                 {
-                    List<SegYTapeSummary> datas = new List<SegYTapeSummary>();
-                    foreach (var item in data)
+                    var it = item.Split(' ').Where(s => !string.IsNullOrWhiteSpace(s));
+                    var iitem = string.Join(",", it);
+                    if (!string.IsNullOrWhiteSpace(iitem))
                     {
-                        var it = item.Split(' ').Where(s => !string.IsNullOrWhiteSpace(s));
-                        var iitem = string.Join(",", it);
-                        if (!string.IsNullOrWhiteSpace(iitem))
+                        if (OutputParseSegY(iitem).TraceCount != "0")
                         {
                             var outputParse = OutputParseSegY(iitem);
                             outputParse.FileSize = fileSize;
                             outputParse.FileType = "SEGY";
                             datas.Add(outputParse);
                         }
-
-                        //  Console.WriteLine(iitem);
                     }
-                    return datas;
+
+                    //  Console.WriteLine(iitem);
                 }
+                return datas;
             }
             catch (ReportErrorHandler)
             {
@@ -965,11 +973,15 @@ namespace ReportGenerator
             {
                 if (data.Count > 1)
                 {
-                    var c = data.Count;
                     return true;
                 }
             }
             return false;
+        }
+
+        public List<string> RemoveUnnecessaryString(List<string> file, string toBeremoved)
+        {
+            return file.FindAll(c => !c.Contains($"{toBeremoved}"));
         }
     }
 }

@@ -136,5 +136,6 @@ namespace ReportGenerator.Repository
         bool IsSequential(int[] array);
         bool isSegDContainsMoreThanOne(List<string> st);
         List<SegYTapeSummary> SegyTapeSummary(List<string> file);
+        List<string> RemoveUnnecessaryString(List<string> file, string toBeremoved);
     }
 }
